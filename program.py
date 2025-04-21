@@ -4,22 +4,14 @@ from scapy.sendrecv import sniff
 from threading import Thread, Event
 import numpy as np
 import pandas as pd
-import pickle
-import csv
-import traceback
 import json
 import ipaddress
 from urllib.request import urlopen
-import dill
 import joblib
 import os
-import plotly
-import plotly.graph_objs as go
 import warnings
-from tensorflow import keras
 import logging
-from lime import lime_tabular
-from scipy.stats import norm
+from tensorflow import keras
 
 # Import custom flow analysis modules
 from flow.Flow import Flow
@@ -36,7 +28,7 @@ logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-def ipInfo(addr=''):
+def get_ip_country(addr=''):
     """Get country information for an IP address"""
     try:
         if addr == '':
@@ -70,12 +62,6 @@ flow_df = pd.DataFrame(columns=[
     'Classification', 'Probability', 'Risk'
 ])
 
-# Initialize log files
-f = open("output_logs.csv", 'w')
-w = csv.writer(f)
-f2 = open("input_logs.csv", 'w')
-w2 = csv.writer(f2)
-
 # Features for the autoencoder
 ae_features = np.array([
     'FlowDuration', 'BwdPacketLengthMax', 'BwdPacketLengthMin', 'BwdPacketLengthMean',
@@ -89,25 +75,22 @@ ae_features = np.array([
     'IdleMean', 'IdleStd', 'IdleMax', 'IdleMin'
 ])
 
+# Global variables
 src_ip_dict = {}
 current_flows = {}
 FlowTimeout = 600
 thread_stop_event = Event()
-classifier=None
+classifier = None
+
 # Load models
 try:
     logger.info("Loading models...")
-    normalisation=joblib.load('models/imputer.pkl')
-
-    
-    classifier= joblib.load('models/model.pkl')
-        
-    
+    normalisation = joblib.load('models/imputer.pkl')
+    classifier = joblib.load('models/model.pkl')
     predict_fn_rf = lambda x: classifier.predict_proba(x).astype(float)
     logger.info("Models loaded successfully")
 except Exception as e:
     logger.error(f"Error loading models: {e}")
-    traceback.print_exc()
 
 def classify(features):
     """Classify network flow based on features"""
@@ -150,19 +133,8 @@ def classify(features):
     if result != 'Benign':
         logger.info(f"Detected non-benign flow: {feature_string + classification + proba_score}")
     
-    # Increment flow counter and log results
+    # Increment flow counter
     flow_count += 1
-    
-    # Write to logs
-    w.writerow(['Flow #' + str(flow_count)])
-    w.writerow(['Flow info:'] + feature_string)
-    w.writerow(['Flow features:'] + features)
-    w.writerow(['Prediction:'] + classification + proba_score)
-    w.writerow(['--------------------------------------------------------------------------------------------------'])
-    
-    w2.writerow(['Flow #' + str(flow_count)])
-    w2.writerow(['Flow info:'] + features)
-    w2.writerow(['--------------------------------------------------------------------------------------------------'])
     
     # Store flow in dataframe
     flow_df.loc[len(flow_df)] = [flow_count] + record + classification + proba_score + risk
@@ -173,7 +145,7 @@ def classify(features):
         'classification': classification[0],
         'probability': proba_score[0],
         'risk': risk[0],
-        'label':result
+        'label': result
     }
 
 def process_packet(p):
@@ -255,7 +227,6 @@ def process_packet(p):
         return None
     except Exception as e:
         logger.error(f"Error processing packet: {e}")
-        traceback.print_exc()
         return None
 
 def sniff_and_detect():
@@ -268,16 +239,14 @@ def sniff_and_detect():
     def packet_callback(p):
         result = process_packet(p)
         if result:
-            # In a real API, we might want to store this or broadcast via WebSockets
+            # Log classification results
             logger.info(f"Classified flow: {result['flow_id']} as {result['classification']}")
-            logger.info(f"Flow features: {result['record']}")
-            logger.info(f"Flow probability: {result['probability']}")
             logger.info(f"Flow risk: {result['risk']}")
-            logger.info(f"Flow classification: {result['label']}")
+            
     while not thread_stop_event.isSet():
         try:
             # Start packet sniffing
-            sniff(prn=packet_callback, store=False,timeout=5)
+            sniff(prn=packet_callback, store=False, timeout=5)
         except Exception as e:
             logger.error(f"Sniffing error: {e}")
             break
@@ -286,12 +255,12 @@ def sniff_and_detect():
     for f in current_flows.values():
         classify(f.terminated())
 
-
-@app.route('/api',methods=['GET'])
+# API Routes
+@app.route('/api', methods=['GET'])
 def api_index():
     """API endpoint to check if the service is running"""
     return jsonify({'status': 'online'})
-# API Routes
+
 @app.route('/api/status', methods=['GET'])
 def api_status():
     """API endpoint to check if the service is running"""
@@ -334,7 +303,6 @@ def api_get_flows():
     # Convert dataframe to dictionary format
     flows = flow_df.to_dict(orient='records')
     return jsonify({'flows': flows, 'count': len(flows)})
-
 
 @app.route('/api/ip-stats', methods=['GET'])
 def api_get_ip_stats():
