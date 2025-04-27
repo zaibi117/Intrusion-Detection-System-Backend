@@ -183,16 +183,6 @@ def process_packet(p):
             packet.setURGFlag(None)
             packet.setRSTFlag(None)
             packet.setWinBytes(None)
-        elif p.haslayer(ICMP):
-            packet.setSrcPort(None)
-            packet.setDestPort(None)
-            packet.setPSHFlag(None)
-            packet.setFINFlag(None)
-            packet.setSYNFlag(None)
-            packet.setACKFlag(None)
-            packet.setURGFlag(None)
-            packet.setRSTFlag(None)
-            packet.setWinBytes(None)
         else:
             packet.setSrcPort(None)
             packet.setDestPort(None)

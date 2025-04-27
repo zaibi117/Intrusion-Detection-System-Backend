@@ -30,17 +30,17 @@ class FlowFeatures:
         self.fwd_packets_s = 0
 
         self.max_packet_len = 0
-        self.packet_len_mean = 0#have: 74, want 66.5
-        self.packet_len_std = 0#have: 100, want 99.00183653
-        self.packet_len_var = 0#have: 10045, want 9801.363636
+        self.packet_len_mean = 0
+        self.packet_len_std = 0
+        self.packet_len_var = 0
 
-        self.FIN_flag_count = 0 #have 1, want 0
-        self.SYN_flag_count = 0 #have 1, want 0
-        self.PSH_flag_count = 0 #have 1 want 0
+        self.FIN_flag_count = 0 
+        self.SYN_flag_count = 0 
+        self.PSH_flag_count = 0
         self.ACK_flag_count = 0
         self.URG_flag_count = 0
 
-        self.avg_packet_size = 0#have: 74, want 72.54545455
+        self.avg_packet_size = 0
 
         self.avg_bwd_segment_size = 0
 
